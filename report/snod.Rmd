@@ -2,13 +2,14 @@
 title: "SNOD -- Autoregression models"
 author: "Jens Roeser"
 date: "`r format(Sys.time(), '%B %e, %Y')`"
-output:   html_document
-  #  fig_width: 7
-  #  fig_height: 6
-  #  fig_caption: true
-  #  tab_caption: true
-
+output: rmarkdown::github_document
 ---
+
+```{r, echo = FALSE}
+knitr::opts_chunk$set(
+  fig.path = "README_figs/README-"
+)
+```
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, include = FALSE)
@@ -124,11 +125,6 @@ pop_effs = samps %>%
          ,RT_IKI = factor(Pos, levels = c('1','2')
                           , labels = c('Response onset latency (RT)', 'Keystroke latency (IKI)')))
 
-#samps %>%
-#  select(phi) %>%
-#  filter(!is.na(phi)) %>%
-#  ggplot(aes(x = phi)) +
-#  geom_histogram()
 ```
 
 
