@@ -2,7 +2,7 @@
 title: "SNOD -- Autoregression models"
 author: "Jens Roeser"
 date: "`r format(Sys.time(), '%B %e, %Y')`"
-output:   html_document
+output: rmarkdown::github_document
   #  fig_width: 7
   #  fig_height: 6
   #  fig_caption: true
