@@ -2,14 +2,13 @@
 title: "SNOD -- Autoregression models"
 author: "Jens Roeser"
 date: "`r format(Sys.time(), '%B %e, %Y')`"
-output: rmarkdown::github_document
----
+output:   pdf_document
+  #  fig_width: 7
+  #  fig_height: 6
+  #  fig_caption: true
+  #  tab_caption: true
 
-```{r, echo = FALSE}
-knitr::opts_chunk$set(
-  fig.path = "README_figs/README-"
-)
-```
+---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, include = FALSE)
@@ -125,6 +124,11 @@ pop_effs = samps %>%
          ,RT_IKI = factor(Pos, levels = c('1','2')
                           , labels = c('Response onset latency (RT)', 'Keystroke latency (IKI)')))
 
+#samps %>%
+#  select(phi) %>%
+#  filter(!is.na(phi)) %>%
+#  ggplot(aes(x = phi)) +
+#  geom_histogram()
 ```
 
 
@@ -180,15 +184,15 @@ Conceptual features of models presented from the simplest model to the most comp
 
 * **Model 1:** no spelling H effect; intercept $\alpha$ and autoregression component $\phi$ [**ARnull.stan**]
 * **Model 2:** no spelling H effect and different intercept $\alpha$ 1 and 2 for before and after onset IKIs, respectively (this was carried forward to the remaining models) [**ARnull2.stan**]
-* **Model 3:** as ARnull2.stan but with spelling H effect (across before/after onset) [**ARspell.stan**]
-* **Model 4:** as ARnull2.stan but with spelling H effect for before/after onset [**ARspell2.stan**]
-* **Model 5:** as ARspell2.stan but with different spelling effect for 0 spelling H indicated as d_spell [1] before onset, [2] after onset [**AR0spell.stan**]
-* **Model 6:** as ARspell2.stan but with mixture component for spelling H effect before onset ($\theta$ is mixing proportion indicating the probability of longer values; $\delta$ is the increased RT for those) [**ARspell2MoG.stan**]
-* **Model 7:** as ARspell2.stan but with mixture cmponent after onset IKIs ($\theta$ is the mixing proportion for long values; $\delta$ is the increase in IKIs) [**ARspell2MoG3.stan**]
-* **Model 8:** as ARspell2.stan but with mixture components before [1] and after [2] onset (theta is the mixing proportion for long values; $\delta$ is the increase in RT/IKIs) [**ARspell2MoG2.stan**]
+* **Model 3:** as Model 2 but with spelling H effect (across before/after onset) [**ARspell.stan**]
+* **Model 4:** as Model 2 but with spelling H effect for before/after onset [**ARspell2.stan**]
+* **Model 5:** as Model 4 but with different spelling effect for 0 spelling H indicated as d_spell [1] before onset, [2] after onset [**AR0spell.stan**]
+* **Model 6:** as Model 4 but with mixture component for spelling H effect before onset ($\theta$ is mixing proportion indicating the probability of longer values; $\delta$ is the increased RT for those) [**ARspell2MoG.stan**]
+* **Model 7:** as Model 4 but with mixture cmponent after onset IKIs ($\theta$ is the mixing proportion for long values; $\delta$ is the increase in IKIs) [**ARspell2MoG3.stan**]
+* **Model 8:** as Model 4 but with mixture components before [1] and after [2] onset (theta is the mixing proportion for long values; $\delta$ is the increase in RT/IKIs) [**ARspell2MoG2.stan**]
 
 
-Model comparisons can be found in the following table. The best fitting model is Model 7, the autoregression model with a mixture component for the IKIs after typing onset. These model comparisons show that that (a) keystroke intervals require a different intercept value for before and after production onset, (b) the spelling H effect has a different effect on these latencies before and after onset, and (c) the spelling H effect is to some extent probabilistic.
+
 
 ```{r}
 
@@ -202,16 +206,19 @@ labs <- paste0("Model ", c(7, 8, 4, 2, 3, 5, 6, 1))
 elpd %<>% mutate(Model = mapvalues(Model, from = mods, to = labs))
 
 ```
+
+Model comparisons can be found in Table \ref{tab:comp}. The best fitting model is Model 7, the autoregression model with a mixture component for the IKIs after typing onset. These model comparisons show that that (a) keystroke intervals require a different intercept value for before and after production onset, (b) the spelling H effect has a different effect on these latencies before and after onset, and (c) the spelling H effect is to some extent probabilistic.
+
 ```{r comp, include =T}
 
-knitr::kable(elpd, caption = "Model comparisons. Models are ordered from the model with the highest predictive performance to the model with the lowest predictive performance.", escape = F, booktabs = T,  
+knitr::kable(elpd, caption = "Model comparisons. Models are ordered from the model with the highest predictive performance to the model with the lowest predictive performance.", escape = F, booktabs = T, linesep = "",
              col.names = c("", "$\\Delta\\widehat{elpd}$", "$\\Delta$SE", "$\\widehat{elpd}$", "SE"))  %>%
   kable_styling(fixed_thead = T, full_width = T)
 ```
 
 
 
-The estimated model parameter of the best fitting model are presented in the following. The best fitting model is an autoregression model with a mixture component for the IKIs after typing onset. This indicates that the spelling H effect is to some extent probabilitic affecting the within-word keystrokes. The spelling effect H has a probability $\theta$ to affect the within-word keystroke intervals. This effect is indicated as $\delta$. For the remaining $1-\theta$ proportion of the within-word keystroke intervals spelling H has an effect $\beta$. This analysis renders that spelling H has no effect on the response time latencies but has a probability $\theta$ to affect the within-word keystroke intervals.
+The estimated model parameter of the best fitting model are presented in Table \ref{tab:params}. The best fitting model is an autoregression model with a mixture component for the IKIs after typing onset. This indicates that the spelling H effect is to some extent probabilitic affecting the within-word keystrokes. The spelling effect H has a probability $\theta$ to affect the within-word keystroke intervals. This effect is indicated as $\delta$. For the remaining $1-\theta$ proportion of the within-word keystroke intervals spelling H has an effect $\beta$. This analysis renders that spelling H has no effect on the response time latencies but has a probability $\theta$ to affect the within-word keystroke intervals.
 
 
 
@@ -257,10 +264,9 @@ samps2 %>% mutate(Parameter = factor(Parameter, levels = param_order, ordered = 
             Median = median(value),
             hi = PI(value,.95)[2]) %>% 
   mutate_at(vars(lo, Median, hi), funs(round(., 2))) %>%
-  knitr::kable(caption = "Model parameters of the autoregression mixture model. Subscripts indicate whether the parameter relates to response time latencies (1) or within-word keystroke intervals (2). ", escape = F, booktabs = T,
+  knitr::kable(caption = "Model parameters of the autoregression mixture model. Subscripts indicate whether the parameter relates to response time latencies (1) or within-word keystroke intervals (2). $\\alpha$ = intercept; $\\beta$ = spelling H effect (for 2: mixture component 1); $\\delta$ = spelling H effect (mixture component 2); $\\theta$ = mixing proportion for mixture component 2; $\\phi$ = autocorrelation; $\\sigma$s = error variance" , escape = F, booktabs = T, linesep = "",
              col.names = c("Parameter", "2.5\\%PI", "$\\hat{\\mu}$", "97.5\\%PI"))  %>%
-  kable_styling(fixed_thead = T, full_width = T) %>%
-  footnote(general = "$\\alpha$ = intercept; $\\beta$ = spelling H effect (for 2: mixture component 1); $\\delta$ = spelling H effect (mixture component 2); $\\theta$ = mixing proportion for mixture component 2; $\\phi$ = autocorrelation; $\\sigma$s = error variance ",footnote_as_chunk = T, escape = F) 
+  kable_styling(full_width = T) 
 
 ```
 
