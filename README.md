@@ -1,1 +1,270 @@
-# SNODNAME
+---
+title: "SNOD -- Autoregression models"
+author: "Jens Roeser"
+date: "`r format(Sys.time(), '%B %e, %Y')`"
+output:   html_document
+  #  fig_width: 7
+  #  fig_height: 6
+  #  fig_caption: true
+  #  tab_caption: true
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, include = FALSE)
+options(knitr.table.format = 'markdown')
+library(loo)
+library(tidyverse)
+library(rstan)
+library(ggridges)
+library(rethinking)
+library(kableExtra)
+library(plyr)
+library(magrittr)
+
+# do plot ----
+
+s = 10 #base size
+m = .3 # label and point size multiplier
+
+my_theme = theme_light(base_size = s) +
+  theme(
+    axis.text.x = element_text(size = s),
+    #axis.text.x = element_blank(),
+    axis.title.x = element_text(margin = margin(t = 15, r = 0, b = 0, l = 0)
+                                ,size = s*.8),
+    #axis.title.x = element_blank(),
+    axis.text.y = element_text(size = s),
+    #axis.title.y = element_text(size = s),
+    axis.title.y = element_blank(),
+    axis.ticks.y = element_blank(),
+    #axis.text.y = element_blank(),
+    axis.ticks.x = element_blank(),
+    #axis.line = element_line(),
+    
+    
+    #legend.position = 'right',
+    legend.position = c(.8,.7),
+    plot.title = element_text(hjust = 0.5,
+                              size = s*.9),
+    #legend.text = element_text(size = s,
+    #                           margin = margin(t = 10, r = 0, b = 10, l = 10)),
+    legend.title = element_blank(),
+    legend.spacing.x = unit(2, "char"),
+    legend.key.size = unit(2, 'char'),
+    #legend.spacing.y = unit(3, "char"),
+    
+    strip.text = element_text(size = s),
+    
+    panel.border=element_blank()
+    #panel.grid = element_blank()
+  )
+
+# Data
+load(file = "../data/snod.RData") 
+
+```
+
+# Overview
+
+The current version of this document presents an analysis of a random subset of 20 ppts / 20 images. 
+
+This report summarises the analysis of keystroke data from an image naming task using autoregression model to account for autocorrelations between subsequent keystrokes. All analyses were implemented in Stan. Random intercepts were included for participants and images. The autoregression between keystrokes is captured in the parameter $\phi$. All models include an error variance $\sigma$. Models were fitted with weakly informative regulating priors.
+
+Two general analyses are presented. The first analysis incorporates various predictors of image naming and writing (see below). A hierarchical model was fitted with hyperpriors on intercepts $\alpha$ and the different effects $\beta$ separated for the first keystroke (the naming response time) and after keystroke onset (within-word IKIs). 
+
+The second analysis tested an extension to mixture models. This extension to mixture models allows us to model effects on the naming process as probabilistic rather than deterministic. For simplicity this analysis focuses on the spelling H effect only.
+
+
+# Autoregression model predictors for written naming
+
+First, we fitted a first order autoregression model with various predictors for written image naming (see AR1.stan). Intercepts $\alpha$ and effects $\beta$ were estimated separately for before and after production onset keystrokes using hyperpriors on parameters before and after onset in a hierarchical model model with hyperpriors on both. Keystroke data were not trimmed. The autogression between subsequent keystrokes was captured in $\phi$. The following figure shows the estimated effects of spelling H separately for before onset response times and within-word keystroke intervals.
+
+
+```{r}
+m <- read_csv("../results/posteriorAR1.csv")
+slopes <- names(m)[grepl("b_",names(m))]
+param <- c("alpha", slopes, "phi", "sigma") 
+
+IVlevs = unique(gsub(slopes,pattern = "\\.|1|2", replacement = ""))
+IVlevs = IVlevs[c(2,1,3:9)]
+IVlabs = c("Spoken naming RT"
+           ,"Name diversity (H)" 
+           ,"Spell diversity (H)"
+           ,"Word length"
+           ,"Word frequency"
+           ,"Digraph frequency (initial)"
+           ,"Digraph frequency (mid)"
+           ,"Digraph conditional probability"
+           ,"Letter frequency")
+
+
+samps <- m %>%
+  gather(Parameter, value) %>%
+  mutate(Parameter = gsub('^\\.|\\.$', '', Parameter)) %>%
+  separate(col = Parameter, into = c("Parameter", "Pos"), sep = "\\.") %>%
+  mutate(Pos = ifelse(is.na(Pos), 3, Pos)) %>%
+  group_by(Parameter) %>%
+  dplyr::mutate(id = 1:n()) %>%
+  spread(Parameter, value) %>%
+  ungroup() %>%
+  select(-id)
+
+
+pop_effs = samps %>%
+  dplyr::rename(Intercept = alpha) %>%
+  group_by(Pos) %>%
+  mutate_at(vars(starts_with('b_')), list(~ (exp(Intercept + .) - exp(Intercept)))) %>%
+  select(starts_with('b_'), Pos) %>%
+  gather(IV,param,-Pos) %>% 
+  ungroup() %>%
+  filter(!is.na(param)) %>%
+  mutate(Pos = as.integer(Pos)) %>%
+  mutate(IV = factor(IV, levels = rev(IVlevs), labels = rev(IVlabs))
+         ,RT_IKI = factor(Pos, levels = c('1','2')
+                          , labels = c('Response onset latency (RT)', 'Keystroke latency (IKI)')))
+
+#samps %>%
+#  select(phi) %>%
+#  filter(!is.na(phi)) %>%
+#  ggplot(aes(x = phi)) +
+#  geom_histogram()
+```
+
+
+```{r, fig.width=9, include=T}
+# do CI plot ----
+
+pop_effs %>% 
+  group_by(RT_IKI, IV) %>% 
+  dplyr::summarise(Median = median(param)
+            ,lo = PI(param,.95)[1]
+            ,hi = PI(param,.95)[2]) %>% 
+  ggplot(aes(y = IV, x = Median)) +
+  geom_vline(aes(xintercept = 0),linetype = 'dashed') +
+  geom_errorbarh(aes(xmin = lo, xmax = hi, height = 0)
+                 ,size = 1.5, colour = 'dark grey') +
+  geom_point(size = 3, colour = 'dark red') +
+  facet_wrap(~RT_IKI, scales ='free_x') +
+  my_theme +
+  labs(x = 'Effect (ms) of 1SD increase in predictor, 95% CrI')
+```
+
+
+The distribution of the remaining parameter estimates is shown in the following figure. The intercept $\alpha$ are shown for the response time latency (1) and the within-word keystroke intervals (2). The autoregression is captured in the parameter $\phi$ and the error variance in the parameter $\sigma$.
+
+```{r fig.width=9, include=T, warning = F}
+
+m %>%
+  gather(Parameter, value) %>%
+  filter(Parameter %in% c("alpha.1", "alpha.2", "phi", "sigma")) %>%
+  mutate(Parameter = gsub(pattern = "\\.", replacement = "\\_", Parameter)) %>%
+  mutate(value = ifelse(Parameter %in% c("alpha_1", "alpha_2"), exp(value), value)) %>%
+  mutate(Parameter = mapvalues(Parameter, from = c("alpha_1", "alpha_2"), to=c("alpha[1]", "alpha[2]"))) %>%
+  ggplot(aes(x = value)) +
+  geom_histogram(bins = 40, alpha = .45) +
+  facet_wrap(~Parameter, scales ='free', labeller = label_parsed) +
+  my_theme +
+  labs(x = bquote("Posterior probability distribution of parameter estimates"~hat(mu)))
+  
+ 
+
+
+```
+
+
+
+
+
+# Extension of the autoregression model to mixture models
+
+The following series of autoregression models is focusing on the effect of spelling H effect. Model complexity was increased incrememtally to test for the benefits of various extensions. The models are generally similar to the previous model. All models are first order autoregression models (autoregression component $\phi$) with randon intercepts for participants and images, lognormal distribution, and variance component $\sigma$. For simplicity the following models focus on the spelling H effect but can be extended to other variables.
+
+Conceptual features of models presented from the simplest model to the most complex model:
+
+* **Model 1:** no spelling H effect; intercept $\alpha$ and autoregression component $\phi$ [**ARnull.stan**]
+* **Model 2:** no spelling H effect and different intercept $\alpha$ 1 and 2 for before and after onset IKIs, respectively (this was carried forward to the remaining models) [**ARnull2.stan**]
+* **Model 3:** as ARnull2.stan but with spelling H effect (across before/after onset) [**ARspell.stan**]
+* **Model 4:** as ARnull2.stan but with spelling H effect for before/after onset [**ARspell2.stan**]
+* **Model 5:** as ARspell2.stan but with different spelling effect for 0 spelling H indicated as d_spell [1] before onset, [2] after onset [**AR0spell.stan**]
+* **Model 6:** as ARspell2.stan but with mixture component for spelling H effect before onset ($\theta$ is mixing proportion indicating the probability of longer values; $\delta$ is the increased RT for those) [**ARspell2MoG.stan**]
+* **Model 7:** as ARspell2.stan but with mixture cmponent after onset IKIs ($\theta$ is the mixing proportion for long values; $\delta$ is the increase in IKIs) [**ARspell2MoG3.stan**]
+* **Model 8:** as ARspell2.stan but with mixture components before [1] and after [2] onset (theta is the mixing proportion for long values; $\delta$ is the increase in RT/IKIs) [**ARspell2MoG2.stan**]
+
+
+Model comparisons can be found in the following table. The best fitting model is Model 7, the autoregression model with a mixture component for the IKIs after typing onset. These model comparisons show that that (a) keystroke intervals require a different intercept value for before and after production onset, (b) the spelling H effect has a different effect on these latencies before and after onset, and (c) the spelling H effect is to some extent probabilistic.
+
+```{r}
+
+file <- paste0("../results/loo_results_subset.csv")
+elpd <- read_csv(file) %>%
+  mutate(Model = gsub(model, pattern = "loo_", replacement = "")) %>%
+  dplyr::select(Model, elpd_diff, se_diff, elpd_loo, se_elpd_loo) 
+
+mods <- elpd$Model
+labs <- paste0("Model ", c(7, 8, 4, 2, 3, 5, 6, 1))
+elpd %<>% mutate(Model = mapvalues(Model, from = mods, to = labs))
+
+```
+```{r comp, include =T}
+
+knitr::kable(elpd, caption = "Model comparisons. Models are ordered from the model with the highest predictive performance to the model with the lowest predictive performance.", escape = F, booktabs = T,  
+             col.names = c("", "$\\Delta\\widehat{elpd}$", "$\\Delta$SE", "$\\widehat{elpd}$", "SE"))  %>%
+  kable_styling(fixed_thead = T, full_width = T)
+```
+
+
+
+The estimated model parameter of the best fitting model are presented in the following. The best fitting model is an autoregression model with a mixture component for the IKIs after typing onset. This indicates that the spelling H effect is to some extent probabilitic affecting the within-word keystrokes. The spelling effect H has a probability $\theta$ to affect the within-word keystroke intervals. This effect is indicated as $\delta$. For the remaining $1-\theta$ proportion of the within-word keystroke intervals spelling H has an effect $\beta$. This analysis renders that spelling H has no effect on the response time latencies but has a probability $\theta$ to affect the within-word keystroke intervals.
+
+
+
+
+```{r}
+
+samps <- read_csv("../results/posteriorARspell2MoG3.csv") %>%
+  mutate(delta.2 = b_spell.2 + delta,
+         phi.2 = phi,
+         theta.2 = theta) %>%
+  select(-phi, -theta, -delta) %>%
+  mutate(b_spell.1 = exp(alpha.1 + b_spell.1) - exp(alpha.1)) %>%
+  mutate(b_spell.2 = exp(alpha.2 + b_spell.2) - exp(alpha.2)) %>%
+  mutate(delta.2 = exp(alpha.2 + delta.2) - exp(alpha.2)) %>%
+  mutate(alpha.1 = exp(alpha.1)) %>%
+  mutate(alpha.2 = exp(alpha.2)) %>%
+  gather(Parameter, value) %>%
+  separate(col = Parameter, into = c("Parameter", "Pos"), sep = "\\.") %>%
+  mutate(Pos =ifelse(is.na(Pos), 3, Pos)) %>%
+  filter(!is.na(value)) %>%
+  mutate(Pos = as.integer(Pos)) 
+
+#with(samps, table(Parameter,Pos))
+
+```
+
+```{r params, include=T, warning=F}
+
+samps %>% 
+  mutate(Pos = ifelse(Pos == 3, "", Pos)) %>%
+  dplyr::mutate(Parameter = gsub(pattern = "b_", "beta_", Parameter),
+         Parameter = gsub(pattern = "_spell", "", Parameter),
+         Parameter = gsub(pattern = "_diff", "_{diff}", Parameter),
+         Parameter = gsub(pattern = "sigmap", "sigma'", Parameter)) %>%
+  mutate(Parameter = ifelse(Pos %in% 1:2, paste0("$\\", Parameter, "_{", Pos, "}$"), 
+                             paste0("$\\", Parameter, "$"))) -> samps2
+
+param_order <- unique(samps2$Parameter)[c(1:4, 9, 11, 10, 5:8)]
+
+samps2 %>% mutate(Parameter = factor(Parameter, levels = param_order, ordered = T)) %>%
+  group_by(Parameter) %>% 
+  dplyr::summarise(lo = PI(value,.95)[1],
+            Median = median(value),
+            hi = PI(value,.95)[2]) %>% 
+  mutate_at(vars(lo, Median, hi), funs(round(., 2))) %>%
+  knitr::kable(caption = "Model parameters of the autoregression mixture model. Subscripts indicate whether the parameter relates to response time latencies (1) or within-word keystroke intervals (2). ", escape = F, booktabs = T,
+             col.names = c("Parameter", "2.5\\%PI", "$\\hat{\\mu}$", "97.5\\%PI"))  %>%
+  kable_styling(fixed_thead = T, full_width = T) %>%
+  footnote(general = "$\\alpha$ = intercept; $\\beta$ = spelling H effect (for 2: mixture component 1); $\\delta$ = spelling H effect (mixture component 2); $\\theta$ = mixing proportion for mixture component 2; $\\phi$ = autocorrelation; $\\sigma$s = error variance ",footnote_as_chunk = T, escape = F) 
+
+```
+
