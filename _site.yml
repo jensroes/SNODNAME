@@ -1,0 +1,8 @@
+name: "SNODNAME"
+navbar:
+  title: "SNODNAME"
+  left:
+    - text: "Home"
+      href: index.html
+    - text: "About"
+      href: about.html
