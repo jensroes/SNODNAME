@@ -1,0 +1,9 @@
+model,elpd_diff,se_diff,elpd_loo,se_elpd_loo
+loo_ARspell2MoG3,0,0,-588.04,34.05
+loo_ARspell2MoG2,-2.84,1.43,-590.88,34.41
+loo_ARspell2,-76.94,18.17,-664.97,42.23
+loo_ARnull2,-77.23,18.37,-665.27,42.32
+loo_ARspell,-77.36,18.23,-665.39,42.26
+loo_AR0spell,-77.53,18.21,-665.56,42.23
+loo_ARspell2MoG,-151.41,34.64,-739.45,62.49
+loo_ARnull,-434.9,23.31,-1022.94,30.57
