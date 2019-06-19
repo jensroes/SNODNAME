@@ -2,11 +2,6 @@
 title: "SNOD -- Autoregression models"
 author: "Jens Roeser"
 date: "`r format(Sys.time(), '%B %e, %Y')`"
-output:   html_document
-  #  fig_width: 7
-  #  fig_height: 6
-  #  fig_caption: true
-  #  tab_caption: true
 
 ---
 
@@ -60,8 +55,6 @@ my_theme = theme_light(base_size = s) +
     #panel.grid = element_blank()
   )
 
-# Data
-load(file = "../data/snod.RData") 
 
 ```
 
@@ -82,7 +75,7 @@ First, we fitted a first order autoregression model with various predictors for 
 
 
 ```{r}
-m <- read_csv("../results/posteriorAR1.csv")
+m <- read_csv("/results/posteriorAR1.csv")
 slopes <- names(m)[grepl("b_",names(m))]
 param <- c("alpha", slopes, "phi", "sigma") 
 
