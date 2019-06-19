@@ -2,7 +2,8 @@
 title: "SNOD -- Autoregression models"
 author: "Jens Roeser"
 date: "`r format(Sys.time(), '%B %e, %Y')`"
-output: rmarkdown::github_document
+  html_document:
+    keep_md: true
 ---
 
 ```{r, echo = FALSE}
