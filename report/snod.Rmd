@@ -147,7 +147,7 @@ pop_effs %>%
   geom_point(size = 3, colour = 'dark red') +
   facet_wrap(~RT_IKI, scales ='free_x') +
   my_theme +
-  labs(x = 'Effect (ms) of 1SD increase in predictor, 95% CrI')
+  labs(x = 'Effect (ms) of 1SD increase in predictor, 95% PI')
 ```
 
 
@@ -160,7 +160,7 @@ m %>%
   filter(Parameter %in% c("alpha.1", "alpha.2", "phi", "sigma")) %>%
   mutate(Parameter = gsub(pattern = "\\.", replacement = "\\_", Parameter)) %>%
   mutate(value = ifelse(Parameter %in% c("alpha_1", "alpha_2"), exp(value), value)) %>%
-  mutate(Parameter = mapvalues(Parameter, from = c("alpha_1", "alpha_2"), to=c("alpha[1]", "alpha[2]"))) %>%
+  mutate(Parameter = mapvalues(Parameter, from = c("alpha_1", "alpha_2", "phi", "sigma"), to=c("alpha[1]", "alpha[2]", "phi1", "sigma"))) %>%
   ggplot(aes(x = value)) +
   geom_histogram(bins = 40, alpha = .45) +
   facet_wrap(~Parameter, scales ='free', labeller = label_parsed) +
@@ -211,7 +211,7 @@ Model comparisons can be found in Table \ref{tab:comp}. The best fitting model i
 
 ```{r comp, include =T}
 
-knitr::kable(elpd, caption = "Model comparisons. Models are ordered from the model with the highest predictive performance to the model with the lowest predictive performance.", escape = F, booktabs = T, linesep = "",
+knitr::kable(elpd, caption = "Model comparisons. Models are ordered from the model with the highest predictive performance $\\widehat{elpd}$ to the model with the lowest predictive performance. $\\Delta\\widehat{elpd}$ indicates the difference between the best fitting model (first row) and the remaining models.", escape = F, booktabs = T, linesep = "",
              col.names = c("", "$\\Delta\\widehat{elpd}$", "$\\Delta$SE", "$\\widehat{elpd}$", "SE"))  %>%
   kable_styling(fixed_thead = T, full_width = T)
 ```
@@ -264,7 +264,7 @@ samps2 %>% mutate(Parameter = factor(Parameter, levels = param_order, ordered = 
             Median = median(value),
             hi = PI(value,.95)[2]) %>% 
   mutate_at(vars(lo, Median, hi), funs(round(., 2))) %>%
-  knitr::kable(caption = "Model parameters of the autoregression mixture model. Subscripts indicate whether the parameter relates to response time latencies (1) or within-word keystroke intervals (2). $\\alpha$ = intercept; $\\beta$ = spelling H effect (for 2: mixture component 1); $\\delta$ = spelling H effect (mixture component 2); $\\theta$ = mixing proportion for mixture component 2; $\\phi$ = autocorrelation; $\\sigma$s = error variance" , escape = F, booktabs = T, linesep = "",
+  knitr::kable(caption = "Model parameters of the autoregression mixture model. Parameter value is indicated as its most probable parameter value $\\hat{\\mu}$ and 95\\% probability intervals. Subscripts indicate whether the parameter relates to response time latencies (1) or within-word keystroke intervals (2). $\\alpha$ = intercept; $\\beta$ = spelling H effect (for 2: mixture component 1); $\\delta$ = spelling H effect (mixture component 2); $\\theta$ = mixing proportion for mixture component 2; $\\phi$ = autocorrelation; $\\sigma$s = error variance" , escape = F, booktabs = T, linesep = "",
              col.names = c("Parameter", "2.5\\%PI", "$\\hat{\\mu}$", "97.5\\%PI"))  %>%
   kable_styling(full_width = T) 
 
